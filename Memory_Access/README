@@ -1,8 +1,0 @@
-This readme provides c++ programs to measure the memory access time, RAM bandwidth and page fault time. 
-
-To compile all the programs
-1. run "make" command in the Memory_Access directory.
-
-Note: we need to run the exe as a admin because exe do some operations for which its needs admin permission. 
-
-Note: To compile/build all the programs at once then run the make command in the top level directory.
