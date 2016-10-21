@@ -1,0 +1,1 @@
+cmd_/home/jsingh/Downloads/Kernel-Module-master/kernel_module/keyvalue.ko := ld -r -m elf_x86_64 -T ./scripts/module-common.lds --build-id  -o /home/jsingh/Downloads/Kernel-Module-master/kernel_module/keyvalue.ko /home/jsingh/Downloads/Kernel-Module-master/kernel_module/keyvalue.o /home/jsingh/Downloads/Kernel-Module-master/kernel_module/keyvalue.mod.o

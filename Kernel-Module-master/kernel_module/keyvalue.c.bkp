@@ -1,0 +1,212 @@
+//////////////////////////////////////////////////////////////////////
+//                             North Carolina State University
+//
+//
+//
+//                             Copyright 2016
+//
+////////////////////////////////////////////////////////////////////////
+//
+// This program is free software; you can redistribute it and/or modify it
+// under the terms and conditions of the GNU General Public License,
+// version 2, as published by the Free Software Foundation.
+//
+// This program is distributed in the hope it will be useful, but WITHOUT
+// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+// FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+// more details.
+//
+// You should have received a copy of the GNU General Public License along with
+// this program; if not, write to the Free Software Foundation, Inc.,
+// 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+//
+////////////////////////////////////////////////////////////////////////
+//
+//   Author:  Hung-Wei Tseng
+//
+//   Description:
+//     Skeleton of KeyValue Pseudo Device
+//
+////////////////////////////////////////////////////////////////////////
+
+/* The Group members are,
+
+Rohit Nambisan, rnambis
+Jalandhar Singh, jsingh8
+
+References:
+The Linux Kernel Module Programming Guide
+*/
+
+#include "keyvalue.h"
+
+#include <asm/uaccess.h>
+#include <linux/slab.h>
+#include <linux/kernel.h>
+#include <linux/errno.h>
+#include <linux/mm.h>
+#include <linux/fs.h>
+#include <linux/miscdevice.h>
+#include <linux/module.h>
+#include <linux/moduleparam.h>
+#include <linux/poll.h>
+#include <linux/list.h>
+
+static struct keyvalue_buffer{
+	struct keyvalue_get hash;
+	struct list_head list;
+};
+
+static struct keyvalue_buffer kbuff;
+static struct list_head *node;
+unsigned transaction_id;
+static void free_callback(void *data)
+{
+}
+
+static long keyvalue_get(struct keyvalue_get __user *ukv)
+{   
+    printk("keyvalue_get getting object\n");
+    struct keyvalue_get kv,*temp;
+    long found = 0;
+    list_for_each(node,&kbuff.list){
+    	temp = list_entry(node, struct keyvalue_buffer, list);
+    	if(temp->key == ukv->key){
+	  kv = *temp ;
+    	  /*kv.key = temp->key;
+    	  kv.size = temp->size;
+    	  kv.data = temp->data;*/
+    	  found = 1;
+    	  break;
+    	}
+    }
+    if(found == 0){
+    	return -1;
+    }
+    else
+    {
+    	put_user(kv,ukv);
+   
+     	return transaction_id++;
+    }
+}
+
+static long keyvalue_set(struct keyvalue_set __user *ukv)
+{
+    printk("keyvalue_set, setting objectd\n");
+    struct keyvalue_get kv,*temp;
+    long found = 0;
+    list_for_each(node,&kbuff.list){
+    	temp = list_entry(node, struct keyvalue_buffer, list);
+    	if(temp->key == ukv->key){
+    	  temp->key = ukv->key;
+    	  temp->size = &(ukv->size);
+    	  temp->data = ukv->data;
+	  found = 1;
+    	  break;
+    	}
+    }
+    if(found == 0)
+    {
+	struct keyvalue_buffer *new_hash;
+    	new_hash = kmalloc(sizeof(struct keyvalue_buffer),GFP_KERNEL);
+    	(new_hash->hash).key = ukv->key;
+    	(new_hash->hash).size = ukv->size;
+    	(new_hash->hash).data = ukv->data;
+    	INIT_LIST_HEAD(&new_hash->list);	
+    	list_add(&new_hash->list, &kbuff.list);
+    	//get_user(new_hash,ukv);
+     }
+  
+  return transaction_id++;
+}
+
+static long keyvalue_delete(struct keyvalue_delete __user *ukv)
+{
+    printk("keyvalue_delete, deleting object\n");
+    long found = 0;
+    struct keyvalue_delete kv;
+    struct keyvalue_buffer *temp;
+
+    
+    list_for_each(node, &kbuff.list){
+    	temp = list_entry(node,struct keyvalue_buffer, list);
+    	if(temp->hash.key == ukv->key){
+    	found = 1;
+    	list_del(&temp->list);
+    	}
+    
+    }
+    if(found == 0)
+    	return -1;
+    else	
+    	return transaction_id++;
+}
+
+//Added by Hung-Wei
+     
+unsigned int keyvalue_poll(struct file *filp, struct poll_table_struct *wait)
+{
+    unsigned int mask = 0;
+    printk("keyvalue_poll called. Process queued\n");
+    return mask;
+}
+
+static long keyvalue_ioctl(struct file *filp, unsigned int cmd,
+                                unsigned long arg)
+{
+    switch (cmd) {
+    case KEYVALUE_IOCTL_GET:
+        return keyvalue_get((void __user *) arg);
+    case KEYVALUE_IOCTL_SET:
+        return keyvalue_set((void __user *) arg);
+    case KEYVALUE_IOCTL_DELETE:
+        return keyvalue_delete((void __user *) arg);
+    default:
+        return -ENOTTY;
+    }
+}
+
+static int keyvalue_mmap(struct file *filp, struct vm_area_struct *vma)
+{
+    return 0;
+}
+
+static const struct file_operations keyvalue_fops = {
+    .owner                = THIS_MODULE,
+    .unlocked_ioctl       = keyvalue_ioctl,
+    .mmap                 = keyvalue_mmap,
+//    .read                = keyvalue_get,
+//    .write             = keyvalue_set,
+//    .poll		  = keyvalue_poll,
+};
+
+static struct miscdevice keyvalue_dev = {
+    .minor = MISC_DYNAMIC_MINOR,
+    .name = "keyvalue",
+    .fops = &keyvalue_fops,
+};
+
+static int __init keyvalue_init(void)
+{
+    int ret;
+
+    if ((ret = misc_register(&keyvalue_dev)))
+        printk(KERN_ERR "Unable to register \"keyvalue\" misc device\n");
+    
+    //kbuff = kmalloc(sizeof(kbuff), GFP_KERNEL);
+    LIST_HEAD(kbuff);
+    return ret;
+}
+
+static void __exit keyvalue_exit(void)
+{
+    misc_deregister(&keyvalue_dev);
+    
+}
+
+MODULE_AUTHOR("Hung-Wei Tseng <htseng3@ncsu.edu>");
+MODULE_LICENSE("GPL");
+MODULE_VERSION("0.1");
+module_init(keyvalue_init);
+module_exit(keyvalue_exit);
