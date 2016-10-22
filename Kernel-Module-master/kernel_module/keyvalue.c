@@ -53,10 +53,7 @@ The Linux Kernel Module Programming Guide
 #include <linux/list.h>
 
 struct keyvalue_node{
-	struct keyvalue_get kv_get; 
-	/*unsigned int key;
-	unsigned int size;
-	void *data;*/
+	struct keyvalue_get *kv_get; 
 	struct keyvalue_node *next;
 };
 
@@ -73,7 +70,7 @@ static void release_list(void)
 	struct keyvalue_node *temp = head;
 	struct keyvalue_node *next = NULL;
 	while( temp != NULL ){
-		printk("removing node = %d \n", temp->key);
+		printk("removing node = %llu \n", temp->kv_get->key);
 		next=temp->next;
 		kfree(temp);
 		temp=next;
@@ -84,23 +81,26 @@ static long keyvalue_get(struct keyvalue_get __user *ukv)
 {   
     bool found = false;
     
-    printk("keyvalue_get getting object\n");
+    struct keyvalue_node *temp = head;
     
-    struct keyvalue_node *temp=head;
     if ( head == NULL )
 	return -1;
 
     
     while(temp != NULL){
     	
-    	if(temp->key == ukv->key){
-	  ukv->size=temp->size;
-	  memcpy(ukv->data, temp->data, temp->size);
+    	if((temp->kv_get)->key == ukv->key){
+	  
+	  ukv->size=temp->kv_get->size;
+	  memcpy(ukv->data, temp->kv_get->data, temp->kv_get->size);
     	  found = true;
     	  break;
-    	}
+    	
+	}
 	else{
-	temp=temp->next;
+	
+	  temp=temp->next;
+	
 	}
     }
 
@@ -115,21 +115,22 @@ static long keyvalue_set(struct keyvalue_set __user *ukv)
 {
     bool found = false;
     
-    printk("keyvalue_set, setting objectd\n");
-    
     struct keyvalue_node *temp = head;
     
     while(temp != NULL){
     	
-	if(temp->key == ukv->key){
-	  temp->size=ukv->size;
-	  memcpy(temp->data, ukv->data, ukv->size);
+	if((temp->kv_get)->key == ukv->key){
+	  
+	  temp->kv_get->size=ukv->size;
+	  memcpy(temp->kv_get->data, ukv->data, ukv->size);
     	  found = true;
     	  break;
-    	}
+    	
+	}
 	else{
 	
     	  temp = temp->next;
+	
 	}
     }
 
@@ -137,13 +138,16 @@ static long keyvalue_set(struct keyvalue_set __user *ukv)
     {
 	struct keyvalue_node *new_node;
     	new_node = kmalloc(sizeof(struct keyvalue_node),GFP_KERNEL);
-    	new_node->key = ukv->key;
-    	new_node->size = ukv->size;
-    	
-	new_node->data = kmalloc(ukv->size*sizeof(char),GFP_KERNEL);
-	memcpy(new_node->data, ukv->data, ukv->size);
 
-	printk("data = %s actual data = %s\n", new_node->data, ukv->data);
+    	new_node->kv_get = kmalloc(sizeof(struct keyvalue_get),GFP_KERNEL);
+
+    	new_node->kv_get->key = ukv->key;
+    	new_node->kv_get->size = ukv->size;
+    	
+	new_node->kv_get->data = kmalloc(ukv->size*sizeof(char),GFP_KERNEL);
+	memcpy(new_node->kv_get->data, ukv->data, ukv->size);
+
+	printk("data = %s actual data = %s\n", (char *)new_node->kv_get->data, (char *)ukv->data);
  
 	new_node->next = head;
 	head = new_node;    
@@ -156,8 +160,6 @@ static long keyvalue_delete(struct keyvalue_delete __user *ukv)
 {
     bool found = false;
     
-    printk("keyvalue_delete, deleting object\n");
-    
     struct keyvalue_node *temp;
     struct keyvalue_node *prev = NULL;
 
@@ -165,7 +167,7 @@ static long keyvalue_delete(struct keyvalue_delete __user *ukv)
    
     while(temp != NULL){
     
-	if(temp->key == ukv->key){
+	if(temp->kv_get->key == ukv->key){
 	
 		if(temp == head){
 			temp=temp->next;
@@ -225,9 +227,6 @@ static const struct file_operations keyvalue_fops = {
     .owner                = THIS_MODULE,
     .unlocked_ioctl       = keyvalue_ioctl,
     .mmap                 = keyvalue_mmap,
-//    .read                = keyvalue_get,
-//    .write             = keyvalue_set,
-//    .poll		  = keyvalue_poll,
 };
 
 static struct miscdevice keyvalue_dev = {

@@ -38,7 +38,7 @@
 
 struct keyvalue_get {
     __u64 key;
-    __u64 *size;
+    __u64 size;
     void *data;
 };
 
