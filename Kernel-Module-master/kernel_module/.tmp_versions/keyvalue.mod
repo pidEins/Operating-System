@@ -1,2 +1,2 @@
-/home/jsingh/Downloads/Kernel-Module-master/kernel_module/keyvalue.ko
-/home/jsingh/Downloads/Kernel-Module-master/kernel_module/keyvalue.o
+/root/Operating-System/Kernel-Module-master/kernel_module/keyvalue.ko
+/root/Operating-System/Kernel-Module-master/kernel_module/keyvalue.o

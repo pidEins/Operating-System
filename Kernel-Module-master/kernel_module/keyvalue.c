@@ -53,9 +53,10 @@ The Linux Kernel Module Programming Guide
 #include <linux/list.h>
 
 struct keyvalue_node{
-	unsigned int key;
+	struct keyvalue_get kv_get; 
+	/*unsigned int key;
 	unsigned int size;
-	char *data;
+	void *data;*/
 	struct keyvalue_node *next;
 };
 
@@ -65,6 +66,18 @@ unsigned transaction_id;
 static __attribute__((unused)) void free_callback(void *data)
 {
 	return;
+}
+
+static void release_list(void)
+{
+	struct keyvalue_node *temp = head;
+	struct keyvalue_node *next = NULL;
+	while( temp != NULL ){
+		printk("removing node = %d \n", temp->key);
+		next=temp->next;
+		kfree(temp);
+		temp=next;
+	}
 }
 
 static long keyvalue_get(struct keyvalue_get __user *ukv)
@@ -81,6 +94,8 @@ static long keyvalue_get(struct keyvalue_get __user *ukv)
     while(temp != NULL){
     	
     	if(temp->key == ukv->key){
+	  ukv->size=temp->size;
+	  memcpy(ukv->data, temp->data, temp->size);
     	  found = true;
     	  break;
     	}
@@ -107,6 +122,7 @@ static long keyvalue_set(struct keyvalue_set __user *ukv)
     while(temp != NULL){
     	
 	if(temp->key == ukv->key){
+	  temp->size=ukv->size;
 	  memcpy(temp->data, ukv->data, ukv->size);
     	  found = true;
     	  break;
@@ -123,7 +139,11 @@ static long keyvalue_set(struct keyvalue_set __user *ukv)
     	new_node = kmalloc(sizeof(struct keyvalue_node),GFP_KERNEL);
     	new_node->key = ukv->key;
     	new_node->size = ukv->size;
+    	
+	new_node->data = kmalloc(ukv->size*sizeof(char),GFP_KERNEL);
 	memcpy(new_node->data, ukv->data, ukv->size);
+
+	printk("data = %s actual data = %s\n", new_node->data, ukv->data);
  
 	new_node->next = head;
 	head = new_node;    
@@ -228,6 +248,7 @@ static int __init keyvalue_init(void)
 
 static void __exit keyvalue_exit(void)
 {
+    release_list();
     misc_deregister(&keyvalue_dev);
     
 }
