@@ -1,1 +1,0 @@
-KERNEL=="keyvalue", MODE="0666", GROUP="user"
