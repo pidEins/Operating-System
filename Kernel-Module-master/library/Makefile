@@ -2,6 +2,7 @@ CFLAGS := -m64 -O2 -g -D_GNU_SOURCE -D_REENTRANT -W -I/usr/local/include
 LDFLAGS := -m64 -lm
 
 all: keyvalue.c
+	cp keyvalue.h  /usr/local/include
 	$(CC) $(CFLAGS) -Wall -fPIC -c keyvalue.c
 	$(CC) $(CFLAGS) -shared -Wl,-soname,libckv.so.1 -o libckv.so.1.0 keyvalue.o
 

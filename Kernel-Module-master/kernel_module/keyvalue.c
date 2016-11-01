@@ -51,12 +51,12 @@ The Linux Kernel Module Programming Guide
 #include <linux/moduleparam.h>
 #include <linux/poll.h>
 #include <linux/list.h>
-
+#include <linux/spinlock.h>
 struct keyvalue_node{
 	struct keyvalue_get *kv_get; 
 	struct keyvalue_node *next;
 };
-
+rwlock_t keyvalue_lock;
 static struct keyvalue_node *head=NULL;
 unsigned transaction_id;
 
@@ -70,7 +70,6 @@ static void release_list(void)
 	struct keyvalue_node *temp = head;
 	struct keyvalue_node *next = NULL;
 	while( temp != NULL ){
-		printk("removing node = %llu \n", temp->kv_get->key);
 		next=temp->next;
 		kfree(temp);
 		temp=next;
@@ -79,13 +78,10 @@ static void release_list(void)
 
 static long keyvalue_get(struct keyvalue_get __user *ukv)
 {   
+    read_lock(&keyvalue_lock);
+    
     bool found = false;
-    
     struct keyvalue_node *temp = head;
-    
-    if ( head == NULL )
-	return -1;
-
     
     while(temp != NULL){
     	
@@ -107,6 +103,8 @@ static long keyvalue_get(struct keyvalue_get __user *ukv)
     if( !found ){
     	return -1;
     }
+   
+    read_unlock(&keyvalue_lock);
     
     return transaction_id++;
 }
@@ -114,7 +112,7 @@ static long keyvalue_get(struct keyvalue_get __user *ukv)
 static long keyvalue_set(struct keyvalue_set __user *ukv)
 {
     bool found = false;
-    
+    write_lock(&keyvalue_lock);
     struct keyvalue_node *temp = head;
     
     while(temp != NULL){
@@ -147,19 +145,18 @@ static long keyvalue_set(struct keyvalue_set __user *ukv)
 	new_node->kv_get->data = kmalloc(ukv->size*sizeof(char),GFP_KERNEL);
 	memcpy(new_node->kv_get->data, ukv->data, ukv->size);
 
-	printk("data = %s actual data = %s\n", (char *)new_node->kv_get->data, (char *)ukv->data);
- 
 	new_node->next = head;
 	head = new_node;    
      }
   
+     write_unlock(&keyvalue_lock);
      return transaction_id++;
 }
 
 static long keyvalue_delete(struct keyvalue_delete __user *ukv)
 {
     bool found = false;
-    
+    write_lock(&keyvalue_lock);
     struct keyvalue_node *temp;
     struct keyvalue_node *prev = NULL;
 
@@ -190,8 +187,11 @@ static long keyvalue_delete(struct keyvalue_delete __user *ukv)
     
     if( !found )
     	return -1;
-    	
+    
+    write_unlock(&keyvalue_lock);	
+    
     return transaction_id++;
+    
 }
 
 //Added by Hung-Wei
@@ -199,7 +199,6 @@ static long keyvalue_delete(struct keyvalue_delete __user *ukv)
 unsigned int keyvalue_poll(struct file *filp, struct poll_table_struct *wait)
 {
     unsigned int mask = 0;
-    printk("keyvalue_poll called. Process queued\n");
     return mask;
 }
 
@@ -238,7 +237,7 @@ static struct miscdevice keyvalue_dev = {
 static int __init keyvalue_init(void)
 {
     int ret;
-
+    rwlock_init(&keyvalue_lock);
     if ((ret = misc_register(&keyvalue_dev)))
         printk(KERN_ERR "Unable to register \"keyvalue\" misc device\n");
     
@@ -257,3 +256,4 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION("0.1");
 module_init(keyvalue_init);
 module_exit(keyvalue_exit);
+
