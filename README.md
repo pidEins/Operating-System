@@ -10,12 +10,12 @@ C/C++ programs to measure the Operating system performance in the following scen
     
     d. Task creation time: Report the time to create and run both a process and a kernel thread. 
     
-     e. Context switch time: Report the time to context switch from one process to another. 
+    e. Context switch time: Report the time to context switch from one process to another. 
 
 2. Memory
 
     a. RAM access time: Report latency for individual integer accesses to main memory and the L1 and L2 caches.
     
-   b. RAM bandwidth: Report bandwidth for both reading and writing. 
+    b. RAM bandwidth: Report bandwidth for both reading and writing. 
    
-c. Page fault service time: Report the time for faulting an entire page from disk (mmap is one useful mechanism).
+    c. Page fault service time: Report the time for faulting an entire page from disk (mmap is one useful mechanism).
